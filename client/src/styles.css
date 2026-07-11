@@ -136,9 +136,30 @@ a {
   align-items: center;
 }
 
-.note-editor__dirty {
+.note-editor__dirty,
+.note-editor__status--dirty {
   color: #b45309;
   font-size: 0.875rem;
+}
+
+.note-editor__status--saved {
+  color: #15803d;
+  font-size: 0.875rem;
+}
+
+.note-editor__status--saving {
+  color: #2563eb;
+  font-size: 0.875rem;
+}
+
+.note-editor__status--error,
+.note-editor__recovery {
+  color: #b45309;
+  font-size: 0.875rem;
+}
+
+.note-editor__recovery {
+  margin: 0 0 1rem;
 }
 
 .note-editor__error,
