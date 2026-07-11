@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { fetchFolders, fetchNote, updateNote, type Folder, type Note } from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
+import { ErrorState } from "../components/ErrorState";
+import { LoadingState } from "../components/LoadingState";
 import { MarkdownContent } from "../components/MarkdownContent";
 
 function formatDate(value: string): string {
@@ -103,11 +105,17 @@ export function NoteDetailPage() {
   }
 
   if (isLoading) {
-    return <p>Loading note...</p>;
+    return <LoadingState message="Loading note..." />;
   }
 
   if (error || !note) {
-    return <p className="page-error">{error ?? "Note not found"}</p>;
+    return (
+      <ErrorState
+        message={error ?? "Note not found"}
+        actionLabel="Back to notes"
+        actionTo="/notes"
+      />
+    );
   }
 
   return (

@@ -11,6 +11,8 @@ import {
   type Tag,
 } from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
+import { ErrorState } from "../components/ErrorState";
+import { LoadingState } from "../components/LoadingState";
 import { NoteEditor, type NoteEditorValues, type SaveStatus } from "../components/NoteEditor";
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 import { clearDraft, draftKey, isDraftNewerThanServer, loadDraft, saveDraft } from "../lib/drafts";
@@ -211,11 +213,11 @@ export function NoteEditorPage() {
   }
 
   if (isLoading) {
-    return <p>Loading note...</p>;
+    return <LoadingState message="Loading note..." />;
   }
 
   if (loadError) {
-    return <p className="note-editor__error">{loadError}</p>;
+    return <ErrorState message={loadError} actionLabel="Back to notes" actionTo="/notes" />;
   }
 
   return (

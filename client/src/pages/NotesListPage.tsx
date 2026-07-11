@@ -10,6 +10,8 @@ import {
   type Tag,
 } from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
+import { ErrorState } from "../components/ErrorState";
+import { LoadingState } from "../components/LoadingState";
 import { NotesList } from "../components/NotesList";
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 
@@ -28,6 +30,7 @@ export function NotesListPage({ archived = false }: NotesListPageProps) {
   const [tags, setTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const folderId = searchParams.get("folderId") ?? "";
   const tagId = searchParams.get("tagId") ?? "";
@@ -88,7 +91,7 @@ export function NotesListPage({ archived = false }: NotesListPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [archived, folderId, isAuthenticated, searchQuery, tagId]);
+  }, [archived, folderId, isAuthenticated, reloadKey, searchQuery, tagId]);
 
   const debouncedUpdateSearch = useDebouncedCallback((value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -116,12 +119,23 @@ export function NotesListPage({ archived = false }: NotesListPageProps) {
     debouncedUpdateSearch(value);
   }
 
+  function clearFilters() {
+    setSearchParams(new URLSearchParams());
+    setSearchInput("");
+  }
+
   if (isLoading) {
-    return <p>Loading notes...</p>;
+    return <LoadingState message={archived ? "Loading archived notes..." : "Loading notes..."} />;
   }
 
   if (error) {
-    return <p className="page-error">{error}</p>;
+    return (
+      <ErrorState
+        message={error}
+        actionLabel="Try again"
+        onAction={() => setReloadKey((value) => value + 1)}
+      />
+    );
   }
 
   return (
@@ -136,6 +150,7 @@ export function NotesListPage({ archived = false }: NotesListPageProps) {
       onFolderFilterChange={(value) => updateFilter("folderId", value)}
       onTagFilterChange={(value) => updateFilter("tagId", value)}
       onSearchChange={handleSearchChange}
+      onClearFilters={clearFilters}
     />
   );
 }
