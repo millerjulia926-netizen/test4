@@ -12,4 +12,6 @@ export const env = {
   databaseUrl: requireEnv("DATABASE_URL", "postgres://localhost:5432/notes"),
   sessionSecret: requireEnv("SESSION_SECRET", "dev-secret-change-me"),
   sessionTimeoutMinutes: Number(process.env.SESSION_TIMEOUT_MINUTES ?? "30"),
+  accessTokenExpiresMinutes: Number(process.env.ACCESS_TOKEN_EXPIRES_MINUTES ?? "15"),
+  refreshTokenExpiresDays: Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS ?? "7"),
 } as const;
