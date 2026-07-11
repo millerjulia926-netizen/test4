@@ -15,6 +15,13 @@
       "when": 1783785890705,
       "tag": "0001_curly_spiral",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783788738045,
+      "tag": "0002_pin_and_archive_notes",
+      "breakpoints": true
     }
   ]
 }

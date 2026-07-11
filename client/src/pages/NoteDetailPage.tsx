@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { fetchFolders, fetchNote, type Folder, type Note } from "../api/notes";
+import { fetchFolders, fetchNote, updateNote, type Folder, type Note } from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
 
 function formatDate(value: string): string {
@@ -16,6 +16,7 @@ export function NoteDetailPage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -59,6 +60,47 @@ export function NoteDetailPage() {
     };
   }, [id, isAuthenticated]);
 
+  async function handlePinToggle() {
+    if (!note) {
+      return;
+    }
+
+    setIsUpdating(true);
+    setError(null);
+
+    try {
+      const updated = await updateNote(note.id, { isPinned: !note.isPinned });
+      setNote(updated);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Failed to update note");
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  async function handleArchiveToggle() {
+    if (!note) {
+      return;
+    }
+
+    setIsUpdating(true);
+    setError(null);
+
+    try {
+      if (note.archivedAt) {
+        const updated = await updateNote(note.id, { archived: false });
+        setNote(updated);
+      } else {
+        await updateNote(note.id, { archived: true });
+        navigate("/notes");
+      }
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Failed to update note");
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
   if (isLoading) {
     return <p>Loading note...</p>;
   }
@@ -70,15 +112,31 @@ export function NoteDetailPage() {
   return (
     <article className="note-detail" data-testid="note-detail">
       <div className="note-detail__header">
-        <Link to="/notes" className="note-detail__back">
-          Back to notes
+        <Link to={note.archivedAt ? "/notes/archived" : "/notes"} className="note-detail__back">
+          {note.archivedAt ? "Back to archived" : "Back to notes"}
         </Link>
-        <Link to={`/notes/${note.id}/edit`} className="note-detail__edit">
-          Edit
-        </Link>
+        <div className="note-detail__actions">
+          {!note.archivedAt ? (
+            <button type="button" disabled={isUpdating} onClick={() => void handlePinToggle()}>
+              {note.isPinned ? "Unpin" : "Pin"}
+            </button>
+          ) : null}
+          <Link to={`/notes/${note.id}/edit`} className="note-detail__edit">
+            Edit
+          </Link>
+          <button type="button" disabled={isUpdating} onClick={() => void handleArchiveToggle()}>
+            {note.archivedAt ? "Restore" : "Archive"}
+          </button>
+        </div>
       </div>
-      <h1>{note.title}</h1>
+      <h1>
+        {note.isPinned ? <span className="notes-list__pin">Pinned</span> : null}
+        {note.title}
+      </h1>
       <p className="note-detail__meta">Updated {formatDate(note.updatedAt)}</p>
+      {note.archivedAt ? (
+        <p className="note-detail__meta">Archived {formatDate(note.archivedAt)}</p>
+      ) : null}
       {note.folderId ? (
         <p className="note-detail__meta">
           Folder: {folders.find((folder) => folder.id === note.folderId)?.name ?? "Unknown"}

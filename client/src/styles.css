@@ -69,6 +69,24 @@ a {
   gap: 1rem;
 }
 
+.note-detail__actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.notes-list__pin {
+  display: inline-block;
+  margin-right: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .notes-list__items {
   list-style: none;
   margin: 0;

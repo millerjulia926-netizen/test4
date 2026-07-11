@@ -9,6 +9,8 @@ export type Note = {
   folderId: string | null;
   title: string;
   content: string;
+  isPinned: boolean;
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
   tags: TagSummary[];
@@ -96,6 +98,7 @@ export async function fetchNotes(filters?: {
   folderId?: string;
   tagId?: string;
   q?: string;
+  archived?: boolean;
 }): Promise<Note[]> {
   const params = new URLSearchParams();
   if (filters?.folderId) {
@@ -106,6 +109,9 @@ export async function fetchNotes(filters?: {
   }
   if (filters?.q) {
     params.set("q", filters.q);
+  }
+  if (filters?.archived) {
+    params.set("archived", "true");
   }
 
   const query = params.toString();
@@ -135,6 +141,8 @@ export async function updateNote(
     content?: string;
     folderId?: string | null;
     tagIds?: string[];
+    isPinned?: boolean;
+    archived?: boolean;
   },
 ): Promise<Note> {
   return apiFetch<Note>(`/notes/${id}`, {

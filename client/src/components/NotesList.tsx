@@ -21,6 +21,7 @@ export type NotesListProps = {
   selectedFolderId?: string;
   selectedTagId?: string;
   searchQuery?: string;
+  archived?: boolean;
   onFolderFilterChange?: (folderId: string) => void;
   onTagFilterChange?: (tagId: string) => void;
   onSearchChange?: (query: string) => void;
@@ -33,6 +34,7 @@ export function NotesList({
   selectedFolderId = "",
   selectedTagId = "",
   searchQuery = "",
+  archived = false,
   onFolderFilterChange,
   onTagFilterChange,
   onSearchChange,
@@ -40,11 +42,12 @@ export function NotesList({
   const folderName = folders.find((folder) => folder.id === selectedFolderId)?.name;
   const tagName = tags.find((tag) => tag.id === selectedTagId)?.name;
   const hasActiveFilters = Boolean(folderName || tagName || searchQuery.trim());
+  const heading = archived ? "Archived notes" : "Your notes";
 
   if (notes.length === 0) {
     return (
       <section className="notes-list notes-list--empty" data-testid="notes-list">
-        <h1>Your notes</h1>
+        <h1>{heading}</h1>
         {onSearchChange || onFolderFilterChange || onTagFilterChange ? (
           <div className="notes-filters">
             {onSearchChange ? (
@@ -94,12 +97,16 @@ export function NotesList({
         ) : null}
         {hasActiveFilters ? (
           <p>No notes match the current filters.</p>
+        ) : archived ? (
+          <p>You do not have any archived notes.</p>
         ) : (
           <p>You do not have any notes yet.</p>
         )}
-        <Link to="/notes/new" className="notes-list__cta">
-          Create your first note
-        </Link>
+        {!archived ? (
+          <Link to="/notes/new" className="notes-list__cta">
+            Create your first note
+          </Link>
+        ) : null}
       </section>
     );
   }
@@ -107,8 +114,8 @@ export function NotesList({
   return (
     <section className="notes-list" data-testid="notes-list">
       <div className="notes-list__header">
-        <h1>Your notes</h1>
-        <Link to="/notes/new">New note</Link>
+        <h1>{heading}</h1>
+        {archived ? <Link to="/notes">Back to notes</Link> : <Link to="/notes/new">New note</Link>}
       </div>
 
       {onFolderFilterChange || onTagFilterChange || onSearchChange ? (
@@ -163,7 +170,10 @@ export function NotesList({
         {notes.map((note) => (
           <li key={note.id}>
             <Link to={`/notes/${note.id}`} className="notes-list__item">
-              <span className="notes-list__title">{note.title}</span>
+              <span className="notes-list__title">
+                {note.isPinned ? <span className="notes-list__pin">Pinned</span> : null}
+                {note.title}
+              </span>
               <span className="notes-list__preview">{preview(note.content)}</span>
               {note.tags.length > 0 ? (
                 <span className="notes-list__tags">

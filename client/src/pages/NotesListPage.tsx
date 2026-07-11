@@ -15,7 +15,11 @@ import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-export function NotesListPage() {
+type NotesListPageProps = {
+  archived?: boolean;
+};
+
+export function NotesListPage({ archived = false }: NotesListPageProps) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -57,6 +61,7 @@ export function NotesListPage() {
             folderId: folderId || undefined,
             tagId: tagId || undefined,
             q: searchQuery || undefined,
+            archived,
           }),
           fetchFolders(),
           fetchTags(),
@@ -83,7 +88,7 @@ export function NotesListPage() {
     return () => {
       cancelled = true;
     };
-  }, [folderId, isAuthenticated, searchQuery, tagId]);
+  }, [archived, folderId, isAuthenticated, searchQuery, tagId]);
 
   const debouncedUpdateSearch = useDebouncedCallback((value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -127,6 +132,7 @@ export function NotesListPage() {
       selectedFolderId={folderId}
       selectedTagId={tagId}
       searchQuery={searchInput}
+      archived={archived}
       onFolderFilterChange={(value) => updateFilter("folderId", value)}
       onTagFilterChange={(value) => updateFilter("tagId", value)}
       onSearchChange={handleSearchChange}

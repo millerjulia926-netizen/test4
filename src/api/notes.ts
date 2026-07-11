@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or, SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, isNotNull, isNull, or, SQL } from "drizzle-orm";
 import { Router } from "express";
 
 import { getTagsForNote, replaceNoteTags, tagsBelongToUser } from "./note-tags.js";
@@ -54,8 +54,15 @@ export function createNotesRouter(db: Database) {
     const tagId = typeof req.query.tagId === "string" ? req.query.tagId : undefined;
     const search =
       typeof req.query.q === "string" && req.query.q.trim() ? req.query.q.trim() : undefined;
+    const showArchived = req.query.archived === "true";
 
     const conditions: SQL[] = [eq(notes.userId, req.userId!)];
+
+    if (showArchived) {
+      conditions.push(isNotNull(notes.archivedAt));
+    } else {
+      conditions.push(isNull(notes.archivedAt));
+    }
 
     if (folderId) {
       if (!(await folderBelongsToUser(db, req.userId!, folderId))) {
@@ -77,7 +84,7 @@ export function createNotesRouter(db: Database) {
       .select()
       .from(notes)
       .where(and(...conditions))
-      .orderBy(desc(notes.updatedAt));
+      .orderBy(desc(notes.isPinned), desc(notes.updatedAt));
 
     if (tagId) {
       const [tag] = await db
@@ -178,7 +185,7 @@ export function createNotesRouter(db: Database) {
       return;
     }
 
-    const { title, content, folderId, tagIds } = req.body ?? {};
+    const { title, content, folderId, tagIds, isPinned, archived } = req.body ?? {};
     const parsedTagIds = parseTagIds(tagIds);
     const updates: Partial<typeof notes.$inferInsert> = {
       updatedAt: new Date(),
@@ -217,6 +224,25 @@ export function createNotesRouter(db: Database) {
       }
 
       updates.folderId = folderId;
+    }
+
+    if (isPinned !== undefined) {
+      if (typeof isPinned !== "boolean") {
+        res.status(400).json({ error: "isPinned must be a boolean" });
+        return;
+      }
+      updates.isPinned = isPinned;
+    }
+
+    if (archived !== undefined) {
+      if (typeof archived !== "boolean") {
+        res.status(400).json({ error: "archived must be a boolean" });
+        return;
+      }
+      updates.archivedAt = archived ? new Date() : null;
+      if (archived) {
+        updates.isPinned = false;
+      }
     }
 
     if (parsedTagIds && !(await tagsBelongToUser(db, req.userId!, parsedTagIds))) {
