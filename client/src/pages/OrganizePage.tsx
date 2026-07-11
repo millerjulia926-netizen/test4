@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -14,6 +14,7 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { ErrorState } from "../components/ErrorState";
 import { LoadingState } from "../components/LoadingState";
+import { useSyncOnFocus } from "../hooks/useSyncOnFocus";
 
 export function OrganizePage() {
   const { isAuthenticated } = useAuth();
@@ -26,6 +27,7 @@ export function OrganizePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  const backgroundSyncRef = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -41,7 +43,12 @@ export function OrganizePage() {
     let cancelled = false;
 
     async function loadOrganizeData() {
-      setIsLoading(true);
+      const background = backgroundSyncRef.current;
+      backgroundSyncRef.current = false;
+
+      if (!background) {
+        setIsLoading(true);
+      }
       setLoadError(null);
 
       try {
@@ -57,7 +64,7 @@ export function OrganizePage() {
           );
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !background) {
           setIsLoading(false);
         }
       }
@@ -69,6 +76,13 @@ export function OrganizePage() {
       cancelled = true;
     };
   }, [isAuthenticated, reloadKey]);
+
+  const syncOrganizeData = useCallback(() => {
+    backgroundSyncRef.current = true;
+    setReloadKey((value) => value + 1);
+  }, []);
+
+  useSyncOnFocus(syncOrganizeData, isAuthenticated);
 
   async function handleCreateFolder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

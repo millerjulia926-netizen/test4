@@ -6,6 +6,7 @@ import {
   fetchFolders,
   fetchNote,
   fetchTags,
+  SyncConflictError,
   updateNote,
   type Folder,
   type Tag,
@@ -43,6 +44,7 @@ export function NoteEditorPage() {
 
   const latestValuesRef = useRef<NoteEditorValues>(initialValues);
   const saveVersionRef = useRef(0);
+  const serverUpdatedAtRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -123,6 +125,7 @@ export function NoteEditorPage() {
 
         setInitialValues(values);
         latestValuesRef.current = values;
+        serverUpdatedAtRef.current = note.updatedAt;
         setDraftRecovered(Boolean(useDraft));
         setSaveStatus(useDraft ? "dirty" : "saved");
       } catch (error) {
@@ -169,7 +172,12 @@ export function NoteEditorPage() {
         tagIds: values.tagIds,
       };
 
-      const savedNote = noteId ? await updateNote(noteId, payload) : await createNote(payload);
+      const savedNote = noteId
+        ? await updateNote(noteId, {
+            ...payload,
+            expectedUpdatedAt: serverUpdatedAtRef.current ?? undefined,
+          })
+        : await createNote(payload);
 
       if (saveVersion !== saveVersionRef.current) {
         return;
@@ -192,10 +200,24 @@ export function NoteEditorPage() {
 
       setInitialValues(nextValues);
       latestValuesRef.current = nextValues;
+      serverUpdatedAtRef.current = savedNote.updatedAt;
       setSaveStatus("saved");
-    } catch {
+    } catch (error) {
       if (saveVersion === saveVersionRef.current) {
-        setSaveStatus("error");
+        if (error instanceof SyncConflictError) {
+          const nextValues = {
+            title: error.note.title,
+            content: error.note.content,
+            folderId: error.note.folderId,
+            tagIds: error.note.tags.map((tag) => tag.id),
+          };
+          setInitialValues(nextValues);
+          latestValuesRef.current = nextValues;
+          serverUpdatedAtRef.current = error.note.updatedAt;
+          setSaveStatus("conflict");
+        } else {
+          setSaveStatus("error");
+        }
       }
     }
   }, [navigate, noteId]);

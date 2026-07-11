@@ -4,7 +4,7 @@ import type { Folder, Tag } from "../api/notes";
 import { MarkdownContent } from "./MarkdownContent";
 
 export type NoteEditorMode = "create" | "edit";
-export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
+export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict";
 
 export type NoteEditorValues = {
   title: string;
@@ -36,6 +36,9 @@ function statusLabel(status: SaveStatus, isDirty: boolean): string | null {
   }
   if (status === "error") {
     return "Save failed";
+  }
+  if (status === "conflict") {
+    return "Updated on another device";
   }
   if (isDirty) {
     return "Unsaved changes";
@@ -135,7 +138,7 @@ export function NoteEditor({
         <h1>{mode === "create" ? "New note" : "Edit note"}</h1>
         {statusText ? (
           <span
-            className={`note-editor__status note-editor__status--${saveStatus === "error" ? "error" : isDirty ? "dirty" : saveStatus}`}
+            className={`note-editor__status note-editor__status--${saveStatus === "error" || saveStatus === "conflict" ? "error" : isDirty ? "dirty" : saveStatus}`}
             data-testid="save-status"
           >
             {statusText}
