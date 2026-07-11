@@ -96,4 +96,14 @@ describe("NoteEditor", () => {
 
     expect(onChange).toHaveBeenCalled();
   });
+
+  it("shows a live markdown preview while editing", async () => {
+    const user = userEvent.setup();
+
+    render(<NoteEditor mode="create" onSave={vi.fn()} />);
+
+    await user.type(screen.getByPlaceholderText("Start writing..."), "# Heading");
+
+    expect(screen.getByRole("heading", { level: 1, name: "Heading" })).toBeInTheDocument();
+  });
 });
