@@ -5,7 +5,7 @@ A notes application with user authentication and session management.
 ## Prerequisites
 
 - Node.js 20+
-- PostgreSQL (for future database work)
+- PostgreSQL 16+ (for database migrations and schema tests)
 
 ## Setup
 
@@ -24,16 +24,29 @@ The server starts on `http://localhost:3000`. Health check: `GET /health`.
 
 ## Scripts
 
-| Command                | Description                      |
-| ---------------------- | -------------------------------- |
-| `npm run dev`          | Start dev server with hot reload |
-| `npm run build`        | Compile TypeScript to `dist/`    |
-| `npm start`            | Run compiled production build    |
-| `npm run lint`         | Run ESLint                       |
-| `npm run format`       | Format code with Prettier        |
-| `npm run format:check` | Check formatting without writing |
-| `npm run typecheck`    | Type-check without emitting      |
-| `npm test`             | Run Vitest test suite            |
+| Command                | Description                         |
+| ---------------------- | ----------------------------------- |
+| `npm run dev`          | Start dev server with hot reload    |
+| `npm run build`        | Compile TypeScript to `dist/`       |
+| `npm start`            | Run compiled production build       |
+| `npm run lint`         | Run ESLint                          |
+| `npm run format`       | Format code with Prettier           |
+| `npm run format:check` | Check formatting without writing    |
+| `npm run typecheck`    | Type-check without emitting         |
+| `npm test`             | Run Vitest test suite               |
+| `npm run db:generate`  | Generate SQL migrations from schema |
+| `npm run db:migrate`   | Apply pending migrations            |
+
+## Database
+
+Schema is defined with Drizzle ORM in `src/db/schema.ts`. Models are re-exported from `src/models/`.
+
+```bash
+npm run db:generate   # after schema changes
+npm run db:migrate    # apply migrations
+```
+
+Schema tests require a running PostgreSQL instance. Set `TEST_DATABASE_URL` or use `DATABASE_URL`.
 
 ## Environment variables
 
