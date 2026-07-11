@@ -11,6 +11,9 @@ import {
 } from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
 import { NotesList } from "../components/NotesList";
+import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export function NotesListPage() {
   const { isAuthenticated } = useAuth();
@@ -24,6 +27,12 @@ export function NotesListPage() {
 
   const folderId = searchParams.get("folderId") ?? "";
   const tagId = searchParams.get("tagId") ?? "";
+  const searchQuery = searchParams.get("q") ?? "";
+  const [searchInput, setSearchInput] = useState(searchQuery);
+
+  useEffect(() => {
+    setSearchInput(searchQuery);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -47,6 +56,7 @@ export function NotesListPage() {
           fetchNotes({
             folderId: folderId || undefined,
             tagId: tagId || undefined,
+            q: searchQuery || undefined,
           }),
           fetchFolders(),
           fetchTags(),
@@ -73,7 +83,18 @@ export function NotesListPage() {
     return () => {
       cancelled = true;
     };
-  }, [folderId, isAuthenticated, tagId]);
+  }, [folderId, isAuthenticated, searchQuery, tagId]);
+
+  const debouncedUpdateSearch = useDebouncedCallback((value: string) => {
+    const next = new URLSearchParams(searchParams);
+    const trimmed = value.trim();
+    if (trimmed) {
+      next.set("q", trimmed);
+    } else {
+      next.delete("q");
+    }
+    setSearchParams(next);
+  }, SEARCH_DEBOUNCE_MS);
 
   function updateFilter(key: "folderId" | "tagId", value: string) {
     const next = new URLSearchParams(searchParams);
@@ -83,6 +104,11 @@ export function NotesListPage() {
       next.delete(key);
     }
     setSearchParams(next);
+  }
+
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+    debouncedUpdateSearch(value);
   }
 
   if (isLoading) {
@@ -100,8 +126,10 @@ export function NotesListPage() {
       tags={tags}
       selectedFolderId={folderId}
       selectedTagId={tagId}
+      searchQuery={searchInput}
       onFolderFilterChange={(value) => updateFilter("folderId", value)}
       onTagFilterChange={(value) => updateFilter("tagId", value)}
+      onSearchChange={handleSearchChange}
     />
   );
 }
