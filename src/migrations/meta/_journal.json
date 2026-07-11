@@ -22,6 +22,13 @@
       "when": 1783788738045,
       "tag": "0002_pin_and_archive_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783789470392,
+      "tag": "0003_note_shares",
+      "breakpoints": true
     }
   ]
 }

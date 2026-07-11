@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { fetchFolders, fetchNote, updateNote, type Folder, type Note } from "../api/notes";
+import {
+  fetchFolders,
+  fetchNote,
+  updateNote,
+  createNoteShare,
+  revokeNoteShare,
+  type Folder,
+  type Note,
+} from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
 import { ErrorState } from "../components/ErrorState";
 import { LoadingState } from "../components/LoadingState";
 import { MarkdownContent } from "../components/MarkdownContent";
 import { useSyncOnFocus } from "../hooks/useSyncOnFocus";
+import { downloadNoteMarkdown } from "../lib/exportNote";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString();
@@ -22,6 +31,12 @@ export function NoteDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [shareInfo, setShareInfo] = useState<{
+    shareId: string;
+    url: string;
+    expiresAt: string;
+  } | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -89,6 +104,60 @@ export function NoteDetailPage() {
     }
   }
 
+  async function handleExport() {
+    if (!note) {
+      return;
+    }
+
+    setActionMessage(null);
+    try {
+      await downloadNoteMarkdown(note.id, note.title);
+      setActionMessage("Note exported as Markdown");
+    } catch (exportError) {
+      setError(exportError instanceof Error ? exportError.message : "Failed to export note");
+    }
+  }
+
+  async function handleShare() {
+    if (!note) {
+      return;
+    }
+
+    setActionMessage(null);
+    setIsUpdating(true);
+
+    try {
+      const share = await createNoteShare(note.id);
+      const url = `${window.location.origin}/shared/${share.token}`;
+      await navigator.clipboard.writeText(url);
+      setShareInfo({ shareId: share.shareId, url, expiresAt: share.expiresAt });
+      setActionMessage("Share link copied to clipboard");
+    } catch (shareError) {
+      setError(shareError instanceof Error ? shareError.message : "Failed to create share link");
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  async function handleRevokeShare() {
+    if (!note || !shareInfo) {
+      return;
+    }
+
+    setIsUpdating(true);
+    setActionMessage(null);
+
+    try {
+      await revokeNoteShare(note.id, shareInfo.shareId);
+      setShareInfo(null);
+      setActionMessage("Share link revoked");
+    } catch (revokeError) {
+      setError(revokeError instanceof Error ? revokeError.message : "Failed to revoke share link");
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
   async function handleArchiveToggle() {
     if (!note) {
       return;
@@ -138,6 +207,12 @@ export function NoteDetailPage() {
               {note.isPinned ? "Unpin" : "Pin"}
             </button>
           ) : null}
+          <button type="button" disabled={isUpdating} onClick={() => void handleExport()}>
+            Export
+          </button>
+          <button type="button" disabled={isUpdating} onClick={() => void handleShare()}>
+            Share
+          </button>
           <Link to={`/notes/${note.id}/edit`} className="note-detail__edit">
             Edit
           </Link>
@@ -146,6 +221,15 @@ export function NoteDetailPage() {
           </button>
         </div>
       </div>
+      {actionMessage ? <p className="note-detail__message">{actionMessage}</p> : null}
+      {shareInfo ? (
+        <div className="note-detail__share">
+          <p className="note-detail__meta">Share link expires {formatDate(shareInfo.expiresAt)}</p>
+          <button type="button" disabled={isUpdating} onClick={() => void handleRevokeShare()}>
+            Revoke share link
+          </button>
+        </div>
+      ) : null}
       <h1>
         {note.isPinned ? <span className="notes-list__pin">Pinned</span> : null}
         {note.title}

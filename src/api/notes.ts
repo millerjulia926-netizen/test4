@@ -1,10 +1,12 @@
 import { and, desc, eq, gt, ilike, isNotNull, isNull, or, SQL } from "drizzle-orm";
 import { Router } from "express";
 
+import { createNoteShare, revokeNoteShare } from "./note-shares.js";
 import { getTagsForNote, replaceNoteTags, tagsBelongToUser } from "./note-tags.js";
 import { type AuthenticatedRequest, requireSession } from "../auth/middleware.js";
 import type { Database } from "../db/client.js";
 import { folders, noteTags, notes, tags } from "../db/schema.js";
+import { serializeNoteToMarkdown } from "../lib/note-export.js";
 
 function parseNoteId(rawId: string | string[]): string | null {
   return typeof rawId === "string" ? rawId : null;
@@ -167,6 +169,76 @@ export function createNotesRouter(db: Database) {
     }
 
     res.status(201).json(await serializeNote(db, note));
+  });
+
+  router.get("/:id/export", async (req: AuthenticatedRequest, res) => {
+    const noteId = parseNoteId(req.params.id);
+    if (!noteId) {
+      res.status(400).json({ error: "Invalid note id" });
+      return;
+    }
+
+    const [note] = await db
+      .select()
+      .from(notes)
+      .where(and(eq(notes.id, noteId), eq(notes.userId, req.userId!)));
+
+    if (!note) {
+      res.status(404).json({ error: "Note not found" });
+      return;
+    }
+
+    const noteTagsList = await getTagsForNote(db, note.id);
+    const markdown = serializeNoteToMarkdown({
+      title: note.title,
+      content: note.content,
+      tags: noteTagsList,
+    });
+
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${note.title.replace(/[^\w.-]+/g, "_") || "note"}.md"`,
+    );
+    res.send(markdown);
+  });
+
+  router.post("/:id/share", async (req: AuthenticatedRequest, res) => {
+    const noteId = parseNoteId(req.params.id);
+    if (!noteId) {
+      res.status(400).json({ error: "Invalid note id" });
+      return;
+    }
+
+    const share = await createNoteShare(db, req.userId!, noteId);
+    if (!share) {
+      res.status(404).json({ error: "Note not found" });
+      return;
+    }
+
+    res.status(201).json({
+      shareId: share.shareId,
+      token: share.token,
+      expiresAt: share.expiresAt.toISOString(),
+    });
+  });
+
+  router.delete("/:id/share/:shareId", async (req: AuthenticatedRequest, res) => {
+    const noteId = parseNoteId(req.params.id);
+    const shareId = typeof req.params.shareId === "string" ? req.params.shareId : null;
+
+    if (!noteId || !shareId) {
+      res.status(400).json({ error: "Invalid share id" });
+      return;
+    }
+
+    const revoked = await revokeNoteShare(db, req.userId!, noteId, shareId);
+    if (!revoked) {
+      res.status(404).json({ error: "Share link not found" });
+      return;
+    }
+
+    res.status(204).send();
   });
 
   router.get("/:id", async (req: AuthenticatedRequest, res) => {

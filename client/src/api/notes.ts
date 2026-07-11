@@ -251,3 +251,27 @@ export async function createTag(name: string): Promise<Tag> {
 export async function deleteTag(id: string): Promise<void> {
   return apiFetch<void>(`/tags/${id}`, { method: "DELETE" });
 }
+
+export type NoteShareLink = {
+  shareId: string;
+  token: string;
+  expiresAt: string;
+};
+
+export type SharedNote = {
+  title: string;
+  content: string;
+  updatedAt: string;
+};
+
+export async function createNoteShare(noteId: string): Promise<NoteShareLink> {
+  return apiFetch<NoteShareLink>(`/notes/${noteId}/share`, { method: "POST" });
+}
+
+export async function revokeNoteShare(noteId: string, shareId: string): Promise<void> {
+  return apiFetch<void>(`/notes/${noteId}/share/${shareId}`, { method: "DELETE" });
+}
+
+export async function fetchSharedNote(token: string): Promise<SharedNote> {
+  return apiFetch<SharedNote>(`/shared/${token}`);
+}
