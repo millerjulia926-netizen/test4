@@ -25,6 +25,7 @@ export type NotesListProps = {
   onFolderFilterChange?: (folderId: string) => void;
   onTagFilterChange?: (tagId: string) => void;
   onSearchChange?: (query: string) => void;
+  onClearFilters?: () => void;
 };
 
 export function NotesList({
@@ -38,6 +39,7 @@ export function NotesList({
   onFolderFilterChange,
   onTagFilterChange,
   onSearchChange,
+  onClearFilters,
 }: NotesListProps) {
   const folderName = folders.find((folder) => folder.id === selectedFolderId)?.name;
   const tagName = tags.find((tag) => tag.id === selectedTagId)?.name;
@@ -96,15 +98,32 @@ export function NotesList({
           </div>
         ) : null}
         {hasActiveFilters ? (
-          <p>No notes match the current filters.</p>
+          <>
+            <p>No notes match the current filters.</p>
+            {onClearFilters ? (
+              <button type="button" className="notes-list__cta" onClick={onClearFilters}>
+                Clear filters
+              </button>
+            ) : null}
+          </>
         ) : archived ? (
           <p>You do not have any archived notes.</p>
         ) : (
           <p>You do not have any notes yet.</p>
         )}
-        {!archived ? (
+        {!archived && !hasActiveFilters ? (
           <Link to="/notes/new" className="notes-list__cta">
             Create your first note
+          </Link>
+        ) : null}
+        {!archived && !hasActiveFilters ? (
+          <Link to="/notes/archived" className="notes-list__secondary-link">
+            View archived notes
+          </Link>
+        ) : null}
+        {archived && !hasActiveFilters ? (
+          <Link to="/notes" className="notes-list__cta">
+            Back to notes
           </Link>
         ) : null}
       </section>

@@ -12,6 +12,8 @@ import {
   type Tag,
 } from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
+import { ErrorState } from "../components/ErrorState";
+import { LoadingState } from "../components/LoadingState";
 
 export function OrganizePage() {
   const { isAuthenticated } = useAuth();
@@ -21,6 +23,9 @@ export function OrganizePage() {
   const [folderName, setFolderName] = useState("");
   const [tagName, setTagName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -33,18 +38,50 @@ export function OrganizePage() {
       return;
     }
 
-    void Promise.all([fetchFolders(), fetchTags()]).then(([nextFolders, nextTags]) => {
-      setFolders(nextFolders);
-      setTags(nextTags);
-    });
-  }, [isAuthenticated]);
+    let cancelled = false;
+
+    async function loadOrganizeData() {
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const [nextFolders, nextTags] = await Promise.all([fetchFolders(), fetchTags()]);
+        if (!cancelled) {
+          setFolders(nextFolders);
+          setTags(nextTags);
+        }
+      } catch (loadFailure) {
+        if (!cancelled) {
+          setLoadError(
+            loadFailure instanceof Error ? loadFailure.message : "Failed to load folders and tags",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadOrganizeData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, reloadKey]);
 
   async function handleCreateFolder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
+    const trimmedName = folderName.trim();
+    if (!trimmedName) {
+      setError("Folder name is required");
+      return;
+    }
+
     try {
-      const folder = await createFolder({ name: folderName });
+      const folder = await createFolder({ name: trimmedName });
       setFolders((current) => [...current, folder].sort((a, b) => a.name.localeCompare(b.name)));
       setFolderName("");
     } catch (createError) {
@@ -56,13 +93,55 @@ export function OrganizePage() {
     event.preventDefault();
     setError(null);
 
+    const trimmedName = tagName.trim();
+    if (!trimmedName) {
+      setError("Tag name is required");
+      return;
+    }
+
     try {
-      const tag = await createTag(tagName);
+      const tag = await createTag(trimmedName);
       setTags((current) => [...current, tag].sort((a, b) => a.name.localeCompare(b.name)));
       setTagName("");
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Failed to create tag");
     }
+  }
+
+  async function handleDeleteFolder(folderId: string) {
+    setError(null);
+
+    try {
+      await deleteFolder(folderId);
+      setFolders((current) => current.filter((item) => item.id !== folderId));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete folder");
+    }
+  }
+
+  async function handleDeleteTag(tagId: string) {
+    setError(null);
+
+    try {
+      await deleteTag(tagId);
+      setTags((current) => current.filter((item) => item.id !== tagId));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete tag");
+    }
+  }
+
+  if (isLoading) {
+    return <LoadingState message="Loading folders and tags..." />;
+  }
+
+  if (loadError) {
+    return (
+      <ErrorState
+        message={loadError}
+        actionLabel="Try again"
+        onAction={() => setReloadKey((value) => value + 1)}
+      />
+    );
   }
 
   return (
@@ -78,26 +157,25 @@ export function OrganizePage() {
               value={folderName}
               onChange={(event) => setFolderName(event.target.value)}
               placeholder="New folder name"
-              required
             />
-            <button type="submit">Add folder</button>
+            <button type="submit" disabled={!folderName.trim()}>
+              Add folder
+            </button>
           </form>
-          <ul className="organize-list">
-            {folders.map((folder) => (
-              <li key={folder.id}>
-                <span>{folder.name}</span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await deleteFolder(folder.id);
-                    setFolders((current) => current.filter((item) => item.id !== folder.id));
-                  }}
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
+          {folders.length === 0 ? (
+            <p className="organize-empty">No folders yet. Create one above.</p>
+          ) : (
+            <ul className="organize-list">
+              {folders.map((folder) => (
+                <li key={folder.id}>
+                  <span>{folder.name}</span>
+                  <button type="button" onClick={() => void handleDeleteFolder(folder.id)}>
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div>
@@ -107,26 +185,25 @@ export function OrganizePage() {
               value={tagName}
               onChange={(event) => setTagName(event.target.value)}
               placeholder="New tag name"
-              required
             />
-            <button type="submit">Add tag</button>
+            <button type="submit" disabled={!tagName.trim()}>
+              Add tag
+            </button>
           </form>
-          <ul className="organize-list">
-            {tags.map((tag) => (
-              <li key={tag.id}>
-                <span>{tag.name}</span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await deleteTag(tag.id);
-                    setTags((current) => current.filter((item) => item.id !== tag.id));
-                  }}
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
+          {tags.length === 0 ? (
+            <p className="organize-empty">No tags yet. Create one above.</p>
+          ) : (
+            <ul className="organize-list">
+              {tags.map((tag) => (
+                <li key={tag.id}>
+                  <span>{tag.name}</span>
+                  <button type="button" onClick={() => void handleDeleteTag(tag.id)}>
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </section>

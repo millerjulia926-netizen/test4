@@ -205,6 +205,30 @@ a {
   color: #b91c1c;
 }
 
+.page-state {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.page-state--loading {
+  color: #475569;
+}
+
+.page-state__action {
+  align-self: flex-start;
+  font-weight: 600;
+}
+
+.notes-list__secondary-link {
+  font-size: 0.95rem;
+}
+
+.organize-empty {
+  margin: 0.5rem 0 0;
+  color: #64748b;
+}
+
 .organize-page,
 .organize-page__grid {
   display: flex;

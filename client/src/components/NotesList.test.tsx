@@ -50,6 +50,30 @@ describe("NotesList", () => {
       "href",
       "/notes/new",
     );
+    expect(screen.getByRole("link", { name: "View archived notes" })).toHaveAttribute(
+      "href",
+      "/notes/archived",
+    );
+  });
+
+  it("renders a clear-filters action when filters return no results", async () => {
+    const user = userEvent.setup();
+    const onClearFilters = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <NotesList
+          notes={[]}
+          searchQuery="missing"
+          onSearchChange={vi.fn()}
+          onClearFilters={onClearFilters}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("No notes match the current filters.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(onClearFilters).toHaveBeenCalledOnce();
   });
 
   it("renders note items with navigation links", () => {
