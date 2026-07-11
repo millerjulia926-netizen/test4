@@ -1,3 +1,8 @@
+export type TagSummary = {
+  id: string;
+  name: string;
+};
+
 export type Note = {
   id: string;
   userId: string;
@@ -6,6 +11,23 @@ export type Note = {
   content: string;
   createdAt: string;
   updatedAt: string;
+  tags: TagSummary[];
+};
+
+export type Folder = {
+  id: string;
+  userId: string;
+  parentId: string | null;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Tag = {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: string;
 };
 
 export type AuthTokens = {
@@ -30,7 +52,7 @@ export function clearTokens(): void {
   localStorage.removeItem(REFRESH_KEY);
 }
 
-async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getAccessToken();
   const headers = new Headers(init.headers);
 
@@ -70,15 +92,29 @@ export async function signup(email: string, password: string): Promise<AuthToken
   });
 }
 
-export async function fetchNotes(): Promise<Note[]> {
-  return apiFetch<Note[]>("/notes");
+export async function fetchNotes(filters?: { folderId?: string; tagId?: string }): Promise<Note[]> {
+  const params = new URLSearchParams();
+  if (filters?.folderId) {
+    params.set("folderId", filters.folderId);
+  }
+  if (filters?.tagId) {
+    params.set("tagId", filters.tagId);
+  }
+
+  const query = params.toString();
+  return apiFetch<Note[]>(`/notes${query ? `?${query}` : ""}`);
 }
 
 export async function fetchNote(id: string): Promise<Note> {
   return apiFetch<Note>(`/notes/${id}`);
 }
 
-export async function createNote(input: { title: string; content: string }): Promise<Note> {
+export async function createNote(input: {
+  title: string;
+  content: string;
+  folderId?: string | null;
+  tagIds?: string[];
+}): Promise<Note> {
   return apiFetch<Note>("/notes", {
     method: "POST",
     body: JSON.stringify(input),
@@ -87,10 +123,48 @@ export async function createNote(input: { title: string; content: string }): Pro
 
 export async function updateNote(
   id: string,
-  input: { title?: string; content?: string },
+  input: {
+    title?: string;
+    content?: string;
+    folderId?: string | null;
+    tagIds?: string[];
+  },
 ): Promise<Note> {
   return apiFetch<Note>(`/notes/${id}`, {
     method: "PATCH",
     body: JSON.stringify(input),
   });
+}
+
+export async function fetchFolders(): Promise<Folder[]> {
+  return apiFetch<Folder[]>("/folders");
+}
+
+export async function createFolder(input: {
+  name: string;
+  parentId?: string | null;
+}): Promise<Folder> {
+  return apiFetch<Folder>("/folders", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  return apiFetch<void>(`/folders/${id}`, { method: "DELETE" });
+}
+
+export async function fetchTags(): Promise<Tag[]> {
+  return apiFetch<Tag[]>("/tags");
+}
+
+export async function createTag(name: string): Promise<Tag> {
+  return apiFetch<Tag>("/tags", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteTag(id: string): Promise<void> {
+  return apiFetch<void>(`/tags/${id}`, { method: "DELETE" });
 }

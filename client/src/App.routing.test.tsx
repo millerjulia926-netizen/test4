@@ -13,6 +13,8 @@ vi.mock("./api/notes", () => ({
   createNote: vi.fn(),
   updateNote: vi.fn(),
   fetchNote: vi.fn(),
+  fetchFolders: vi.fn(async () => []),
+  fetchTags: vi.fn(async () => []),
   login: vi.fn(),
   signup: vi.fn(),
 }));

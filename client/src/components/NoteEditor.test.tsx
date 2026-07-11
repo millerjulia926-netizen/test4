@@ -54,6 +54,8 @@ describe("NoteEditor", () => {
     expect(onSave).toHaveBeenCalledWith({
       title: "Draft title",
       content: "",
+      folderId: null,
+      tagIds: [],
     });
   });
 

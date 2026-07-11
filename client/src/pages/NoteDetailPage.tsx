@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { fetchNote, type Note } from "../api/notes";
+import { fetchFolders, fetchNote, type Folder, type Note } from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
 
 function formatDate(value: string): string {
@@ -13,6 +13,7 @@ export function NoteDetailPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [note, setNote] = useState<Note | null>(null);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,9 +36,10 @@ export function NoteDetailPage() {
       setError(null);
 
       try {
-        const data = await fetchNote(noteId);
+        const [data, folderData] = await Promise.all([fetchNote(noteId), fetchFolders()]);
         if (!cancelled) {
           setNote(data);
+          setFolders(folderData);
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -77,6 +79,20 @@ export function NoteDetailPage() {
       </div>
       <h1>{note.title}</h1>
       <p className="note-detail__meta">Updated {formatDate(note.updatedAt)}</p>
+      {note.folderId ? (
+        <p className="note-detail__meta">
+          Folder: {folders.find((folder) => folder.id === note.folderId)?.name ?? "Unknown"}
+        </p>
+      ) : null}
+      {note.tags.length > 0 ? (
+        <div className="note-detail__tags">
+          {note.tags.map((tag) => (
+            <span key={tag.id} className="tag-chip">
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="note-detail__content">{note.content || "No content yet."}</div>
     </article>
   );

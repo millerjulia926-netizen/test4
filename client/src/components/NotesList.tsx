@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import type { Note } from "../api/notes";
+import type { Folder, Note, Tag } from "../api/notes";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString();
@@ -16,14 +16,35 @@ function preview(content: string): string {
 
 export type NotesListProps = {
   notes: Note[];
+  folders?: Folder[];
+  tags?: Tag[];
+  selectedFolderId?: string;
+  selectedTagId?: string;
+  onFolderFilterChange?: (folderId: string) => void;
+  onTagFilterChange?: (tagId: string) => void;
 };
 
-export function NotesList({ notes }: NotesListProps) {
+export function NotesList({
+  notes,
+  folders = [],
+  tags = [],
+  selectedFolderId = "",
+  selectedTagId = "",
+  onFolderFilterChange,
+  onTagFilterChange,
+}: NotesListProps) {
+  const folderName = folders.find((folder) => folder.id === selectedFolderId)?.name;
+  const tagName = tags.find((tag) => tag.id === selectedTagId)?.name;
+
   if (notes.length === 0) {
     return (
       <section className="notes-list notes-list--empty" data-testid="notes-list">
         <h1>Your notes</h1>
-        <p>You do not have any notes yet.</p>
+        {folderName || tagName ? (
+          <p>No notes match the current filters.</p>
+        ) : (
+          <p>You do not have any notes yet.</p>
+        )}
         <Link to="/notes/new" className="notes-list__cta">
           Create your first note
         </Link>
@@ -37,12 +58,59 @@ export function NotesList({ notes }: NotesListProps) {
         <h1>Your notes</h1>
         <Link to="/notes/new">New note</Link>
       </div>
+
+      {onFolderFilterChange || onTagFilterChange ? (
+        <div className="notes-filters">
+          {onFolderFilterChange ? (
+            <label>
+              Folder
+              <select
+                value={selectedFolderId}
+                onChange={(event) => onFolderFilterChange(event.target.value)}
+              >
+                <option value="">All folders</option>
+                {folders.map((folder) => (
+                  <option key={folder.id} value={folder.id}>
+                    {folder.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {onTagFilterChange ? (
+            <label>
+              Tag
+              <select
+                value={selectedTagId}
+                onChange={(event) => onTagFilterChange(event.target.value)}
+              >
+                <option value="">All tags</option>
+                {tags.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    {tag.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
+      ) : null}
+
       <ul className="notes-list__items">
         {notes.map((note) => (
           <li key={note.id}>
             <Link to={`/notes/${note.id}`} className="notes-list__item">
               <span className="notes-list__title">{note.title}</span>
               <span className="notes-list__preview">{preview(note.content)}</span>
+              {note.tags.length > 0 ? (
+                <span className="notes-list__tags">
+                  {note.tags.map((tag) => (
+                    <span key={tag.id} className="tag-chip">
+                      {tag.name}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
               <span className="notes-list__meta">Updated {formatDate(note.updatedAt)}</span>
             </Link>
           </li>

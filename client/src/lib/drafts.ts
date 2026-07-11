@@ -1,6 +1,8 @@
 export type NoteDraft = {
   title: string;
   content: string;
+  folderId?: string | null;
+  tagIds?: string[];
   updatedAt: string;
 };
 

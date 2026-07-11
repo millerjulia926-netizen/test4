@@ -8,6 +8,8 @@ export default defineConfig({
     proxy: {
       "/auth": "http://localhost:3000",
       "/notes": "http://localhost:3000",
+      "/folders": "http://localhost:3000",
+      "/tags": "http://localhost:3000",
       "/health": "http://localhost:3000",
     },
   },

@@ -1,13 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { createNote, fetchNote, updateNote } from "../api/notes";
+import {
+  createNote,
+  fetchFolders,
+  fetchNote,
+  fetchTags,
+  updateNote,
+  type Folder,
+  type Tag,
+} from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
-import { NoteEditor, type SaveStatus } from "../components/NoteEditor";
+import { NoteEditor, type NoteEditorValues, type SaveStatus } from "../components/NoteEditor";
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 import { clearDraft, draftKey, isDraftNewerThanServer, loadDraft, saveDraft } from "../lib/drafts";
 
 const AUTO_SAVE_DELAY_MS = 800;
+
+type EditorDraft = NoteEditorValues & { updatedAt?: string };
 
 export function NoteEditorPage() {
   const { id } = useParams();
@@ -16,14 +26,20 @@ export function NoteEditorPage() {
   const mode = id ? "edit" : "create";
 
   const [noteId, setNoteId] = useState<string | undefined>(id);
-  const [initialTitle, setInitialTitle] = useState("");
-  const [initialContent, setInitialContent] = useState("");
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [initialValues, setInitialValues] = useState<NoteEditorValues>({
+    title: "",
+    content: "",
+    folderId: null,
+    tagIds: [],
+  });
   const [isLoading, setIsLoading] = useState(mode === "edit");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [draftRecovered, setDraftRecovered] = useState(false);
 
-  const latestValuesRef = useRef({ title: "", content: "" });
+  const latestValuesRef = useRef<NoteEditorValues>(initialValues);
   const saveVersionRef = useRef(0);
 
   useEffect(() => {
@@ -33,12 +49,28 @@ export function NoteEditorPage() {
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    void Promise.all([fetchFolders(), fetchTags()]).then(([nextFolders, nextTags]) => {
+      setFolders(nextFolders);
+      setTags(nextTags);
+    });
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (mode === "create") {
-      const draft = loadDraft(draftKey());
+      const draft = loadDraft(draftKey()) as EditorDraft | null;
       if (draft) {
-        setInitialTitle(draft.title);
-        setInitialContent(draft.content);
-        latestValuesRef.current = { title: draft.title, content: draft.content };
+        const values = {
+          title: draft.title,
+          content: draft.content,
+          folderId: draft.folderId ?? null,
+          tagIds: draft.tagIds ?? [],
+        };
+        setInitialValues(values);
+        latestValuesRef.current = values;
         setDraftRecovered(true);
         setSaveStatus("dirty");
       }
@@ -62,19 +94,33 @@ export function NoteEditorPage() {
           return;
         }
 
-        const draft = loadDraft(draftKey(noteIdValue));
+        const draft = loadDraft(draftKey(noteIdValue)) as EditorDraft | null;
         const useDraft =
           draft &&
           (draft.title !== note.title ||
             draft.content !== note.content ||
-            isDraftNewerThanServer(draft, note.updatedAt));
+            (draft.folderId ?? null) !== note.folderId ||
+            isDraftNewerThanServer(
+              { ...draft, updatedAt: draft.updatedAt ?? new Date(0).toISOString() },
+              note.updatedAt,
+            ));
 
-        const title = useDraft ? draft.title : note.title;
-        const content = useDraft ? draft.content : note.content;
+        const values = useDraft
+          ? {
+              title: draft.title,
+              content: draft.content,
+              folderId: draft.folderId ?? null,
+              tagIds: draft.tagIds ?? note.tags.map((tag) => tag.id),
+            }
+          : {
+              title: note.title,
+              content: note.content,
+              folderId: note.folderId,
+              tagIds: note.tags.map((tag) => tag.id),
+            };
 
-        setInitialTitle(title);
-        setInitialContent(content);
-        latestValuesRef.current = { title, content };
+        setInitialValues(values);
+        latestValuesRef.current = values;
         setDraftRecovered(Boolean(useDraft));
         setSaveStatus(useDraft ? "dirty" : "saved");
       } catch (error) {
@@ -96,7 +142,7 @@ export function NoteEditorPage() {
   }, [id, mode]);
 
   const persistDraft = useCallback(
-    (values: { title: string; content: string }) => {
+    (values: NoteEditorValues) => {
       latestValuesRef.current = values;
       saveDraft(draftKey(noteId), values);
       setSaveStatus("dirty");
@@ -114,15 +160,14 @@ export function NoteEditorPage() {
     setSaveStatus("saving");
 
     try {
-      const savedNote = noteId
-        ? await updateNote(noteId, {
-            title: values.title.trim(),
-            content: values.content,
-          })
-        : await createNote({
-            title: values.title.trim(),
-            content: values.content,
-          });
+      const payload = {
+        title: values.title.trim(),
+        content: values.content,
+        folderId: values.folderId,
+        tagIds: values.tagIds,
+      };
+
+      const savedNote = noteId ? await updateNote(noteId, payload) : await createNote(payload);
 
       if (saveVersion !== saveVersionRef.current) {
         return;
@@ -136,12 +181,15 @@ export function NoteEditorPage() {
         clearDraft(draftKey(noteId));
       }
 
-      setInitialTitle(savedNote.title);
-      setInitialContent(savedNote.content);
-      latestValuesRef.current = {
+      const nextValues = {
         title: savedNote.title,
         content: savedNote.content,
+        folderId: savedNote.folderId,
+        tagIds: savedNote.tags.map((tag) => tag.id),
       };
+
+      setInitialValues(nextValues);
+      latestValuesRef.current = nextValues;
       setSaveStatus("saved");
     } catch {
       if (saveVersion === saveVersionRef.current) {
@@ -152,12 +200,12 @@ export function NoteEditorPage() {
 
   const debouncedAutoSave = useDebouncedCallback(runAutoSave, AUTO_SAVE_DELAY_MS);
 
-  function handleChange(values: { title: string; content: string }) {
+  function handleChange(values: NoteEditorValues) {
     persistDraft(values);
     debouncedAutoSave();
   }
 
-  async function handleManualSave(values: { title: string; content: string }) {
+  async function handleManualSave(values: NoteEditorValues) {
     latestValuesRef.current = values;
     await runAutoSave();
   }
@@ -178,10 +226,14 @@ export function NoteEditorPage() {
         </p>
       ) : null}
       <NoteEditor
-        key={`${mode}-${noteId ?? "new"}-${initialTitle}`}
+        key={`${mode}-${noteId ?? "new"}-${initialValues.title}`}
         mode={noteId ? "edit" : "create"}
-        initialTitle={initialTitle}
-        initialContent={initialContent}
+        folders={folders}
+        tags={tags}
+        initialTitle={initialValues.title}
+        initialContent={initialValues.content}
+        initialFolderId={initialValues.folderId}
+        initialTagIds={initialValues.tagIds}
         saveStatus={saveStatus}
         onChange={handleChange}
         onSave={handleManualSave}

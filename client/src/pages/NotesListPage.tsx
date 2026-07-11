@@ -1,16 +1,29 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { fetchNotes, type Note } from "../api/notes";
+import {
+  fetchFolders,
+  fetchNotes,
+  fetchTags,
+  type Folder,
+  type Note,
+  type Tag,
+} from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
 import { NotesList } from "../components/NotesList";
 
 export function NotesListPage() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const folderId = searchParams.get("folderId") ?? "";
+  const tagId = searchParams.get("tagId") ?? "";
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -25,14 +38,24 @@ export function NotesListPage() {
 
     let cancelled = false;
 
-    async function loadNotes() {
+    async function loadData() {
       setIsLoading(true);
       setError(null);
 
       try {
-        const data = await fetchNotes();
+        const [notesData, foldersData, tagsData] = await Promise.all([
+          fetchNotes({
+            folderId: folderId || undefined,
+            tagId: tagId || undefined,
+          }),
+          fetchFolders(),
+          fetchTags(),
+        ]);
+
         if (!cancelled) {
-          setNotes(data);
+          setNotes(notesData);
+          setFolders(foldersData);
+          setTags(tagsData);
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -45,12 +68,22 @@ export function NotesListPage() {
       }
     }
 
-    void loadNotes();
+    void loadData();
 
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated]);
+  }, [folderId, isAuthenticated, tagId]);
+
+  function updateFilter(key: "folderId" | "tagId", value: string) {
+    const next = new URLSearchParams(searchParams);
+    if (value) {
+      next.set(key, value);
+    } else {
+      next.delete(key);
+    }
+    setSearchParams(next);
+  }
 
   if (isLoading) {
     return <p>Loading notes...</p>;
@@ -60,5 +93,15 @@ export function NotesListPage() {
     return <p className="page-error">{error}</p>;
   }
 
-  return <NotesList notes={notes} />;
+  return (
+    <NotesList
+      notes={notes}
+      folders={folders}
+      tags={tags}
+      selectedFolderId={folderId}
+      selectedTagId={tagId}
+      onFolderFilterChange={(value) => updateFilter("folderId", value)}
+      onTagFilterChange={(value) => updateFilter("tagId", value)}
+    />
+  );
 }

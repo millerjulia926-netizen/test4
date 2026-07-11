@@ -15,6 +15,7 @@ const sampleNotes = [
     folderId: null,
     title: "Meeting notes",
     content: "Discuss roadmap",
+    tags: [],
     createdAt: "2026-07-11T10:00:00.000Z",
     updatedAt: "2026-07-11T12:00:00.000Z",
   },
@@ -27,6 +28,8 @@ vi.mock("./api/notes", async () => {
     getAccessToken: () => "test-token",
     fetchNote: vi.fn(async () => sampleNotes[0]),
     fetchNotes: vi.fn(),
+    fetchFolders: vi.fn(async () => []),
+    fetchTags: vi.fn(async () => []),
     login: vi.fn(),
     signup: vi.fn(),
   };
