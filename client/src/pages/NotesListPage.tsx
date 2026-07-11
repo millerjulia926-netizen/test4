@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
@@ -14,6 +14,7 @@ import { ErrorState } from "../components/ErrorState";
 import { LoadingState } from "../components/LoadingState";
 import { NotesList } from "../components/NotesList";
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
+import { useSyncOnFocus } from "../hooks/useSyncOnFocus";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -31,6 +32,7 @@ export function NotesListPage({ archived = false }: NotesListPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const backgroundSyncRef = useRef(false);
 
   const folderId = searchParams.get("folderId") ?? "";
   const tagId = searchParams.get("tagId") ?? "";
@@ -55,7 +57,12 @@ export function NotesListPage({ archived = false }: NotesListPageProps) {
     let cancelled = false;
 
     async function loadData() {
-      setIsLoading(true);
+      const background = backgroundSyncRef.current;
+      backgroundSyncRef.current = false;
+
+      if (!background) {
+        setIsLoading(true);
+      }
       setError(null);
 
       try {
@@ -80,7 +87,7 @@ export function NotesListPage({ archived = false }: NotesListPageProps) {
           setError(loadError instanceof Error ? loadError.message : "Failed to load notes");
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !background) {
           setIsLoading(false);
         }
       }
@@ -92,6 +99,13 @@ export function NotesListPage({ archived = false }: NotesListPageProps) {
       cancelled = true;
     };
   }, [archived, folderId, isAuthenticated, reloadKey, searchQuery, tagId]);
+
+  const syncNotes = useCallback(() => {
+    backgroundSyncRef.current = true;
+    setReloadKey((value) => value + 1);
+  }, []);
+
+  useSyncOnFocus(syncNotes, isAuthenticated);
 
   const debouncedUpdateSearch = useDebouncedCallback((value: string) => {
     const next = new URLSearchParams(searchParams);

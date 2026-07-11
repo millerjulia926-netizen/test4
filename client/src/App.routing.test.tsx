@@ -10,6 +10,7 @@ vi.mock("./api/notes", () => ({
   getAccessToken: () => "test-token",
   setTokens: vi.fn(),
   clearTokens: vi.fn(),
+  restoreSession: vi.fn(async () => true),
   createNote: vi.fn(),
   updateNote: vi.fn(),
   fetchNote: vi.fn(),

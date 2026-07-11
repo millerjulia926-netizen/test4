@@ -1,9 +1,10 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import {
   clearTokens,
   getAccessToken,
   login as apiLogin,
+  restoreSession,
   setTokens,
   signup as apiSignup,
 } from "../api/notes";
@@ -19,6 +20,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(Boolean(getAccessToken()));
+
+  useEffect(() => {
+    void restoreSession().then((restored) => {
+      if (restored) {
+        setIsAuthenticated(true);
+      }
+    });
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({

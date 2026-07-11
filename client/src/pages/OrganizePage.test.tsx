@@ -8,6 +8,7 @@ import { OrganizePage } from "./OrganizePage";
 
 vi.mock("../api/notes", () => ({
   getAccessToken: () => "test-token",
+  restoreSession: vi.fn(async () => true),
   fetchFolders: vi.fn(async () => []),
   fetchTags: vi.fn(async () => []),
   createFolder: vi.fn(),

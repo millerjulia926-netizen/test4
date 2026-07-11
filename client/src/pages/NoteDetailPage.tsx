@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { fetchFolders, fetchNote, updateNote, type Folder, type Note } from "../api/notes";
@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { ErrorState } from "../components/ErrorState";
 import { LoadingState } from "../components/LoadingState";
 import { MarkdownContent } from "../components/MarkdownContent";
+import { useSyncOnFocus } from "../hooks/useSyncOnFocus";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString();
@@ -20,6 +21,7 @@ export function NoteDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -61,7 +63,13 @@ export function NoteDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, isAuthenticated]);
+  }, [id, isAuthenticated, reloadKey]);
+
+  const syncNote = useCallback(() => {
+    setReloadKey((value) => value + 1);
+  }, []);
+
+  useSyncOnFocus(syncNote, isAuthenticated && Boolean(id));
 
   async function handlePinToggle() {
     if (!note) {

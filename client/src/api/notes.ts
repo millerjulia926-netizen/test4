@@ -37,8 +37,22 @@ export type AuthTokens = {
   refreshToken: string;
 };
 
+export class SyncConflictError extends Error {
+  note: Note;
+
+  constructor(message: string, note: Note) {
+    super(message);
+    this.name = "SyncConflictError";
+    this.note = note;
+  }
+}
+
 const TOKEN_KEY = "notes_access_token";
 const REFRESH_KEY = "notes_refresh_token";
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_KEY);
+}
 
 export function getAccessToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -54,7 +68,33 @@ export function clearTokens(): void {
   localStorage.removeItem(REFRESH_KEY);
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function refreshAccessToken(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    return false;
+  }
+
+  const response = await fetch("/auth/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!response.ok) {
+    clearTokens();
+    return false;
+  }
+
+  const tokens = (await response.json()) as AuthTokens;
+  setTokens(tokens);
+  return true;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  init: RequestInit = {},
+  retried = false,
+): Promise<T> {
   const token = getAccessToken();
   const headers = new Headers(init.headers);
 
@@ -68,8 +108,23 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   const response = await fetch(path, { ...init, headers });
 
+  if (response.status === 401 && !retried) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return apiFetch<T>(path, init, true);
+    }
+  }
+
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    const body = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      note?: Note;
+    };
+
+    if (response.status === 409 && body.note) {
+      throw new SyncConflictError(body.error ?? "Sync conflict", body.note);
+    }
+
     throw new Error(body.error ?? `Request failed with status ${response.status}`);
   }
 
@@ -78,6 +133,14 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   }
 
   return response.json() as Promise<T>;
+}
+
+export async function restoreSession(): Promise<boolean> {
+  if (getAccessToken()) {
+    return true;
+  }
+
+  return refreshAccessToken();
 }
 
 export async function login(email: string, password: string): Promise<AuthTokens> {
@@ -99,6 +162,7 @@ export async function fetchNotes(filters?: {
   tagId?: string;
   q?: string;
   archived?: boolean;
+  updatedSince?: string;
 }): Promise<Note[]> {
   const params = new URLSearchParams();
   if (filters?.folderId) {
@@ -112,6 +176,9 @@ export async function fetchNotes(filters?: {
   }
   if (filters?.archived) {
     params.set("archived", "true");
+  }
+  if (filters?.updatedSince) {
+    params.set("updatedSince", filters.updatedSince);
   }
 
   const query = params.toString();
@@ -143,6 +210,7 @@ export async function updateNote(
     tagIds?: string[];
     isPinned?: boolean;
     archived?: boolean;
+    expectedUpdatedAt?: string;
   },
 ): Promise<Note> {
   return apiFetch<Note>(`/notes/${id}`, {

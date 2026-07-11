@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, isNotNull, isNull, or, SQL } from "drizzle-orm";
+import { and, desc, eq, gt, ilike, isNotNull, isNull, or, SQL } from "drizzle-orm";
 import { Router } from "express";
 
 import { getTagsForNote, replaceNoteTags, tagsBelongToUser } from "./note-tags.js";
@@ -55,6 +55,8 @@ export function createNotesRouter(db: Database) {
     const search =
       typeof req.query.q === "string" && req.query.q.trim() ? req.query.q.trim() : undefined;
     const showArchived = req.query.archived === "true";
+    const updatedSince =
+      typeof req.query.updatedSince === "string" ? req.query.updatedSince : undefined;
 
     const conditions: SQL[] = [eq(notes.userId, req.userId!)];
 
@@ -78,6 +80,15 @@ export function createNotesRouter(db: Database) {
       if (searchCondition) {
         conditions.push(searchCondition);
       }
+    }
+
+    if (updatedSince) {
+      const sinceDate = new Date(updatedSince);
+      if (Number.isNaN(sinceDate.getTime())) {
+        res.status(400).json({ error: "updatedSince must be a valid ISO date" });
+        return;
+      }
+      conditions.push(gt(notes.updatedAt, sinceDate));
     }
 
     let userNotes = await db
@@ -185,11 +196,38 @@ export function createNotesRouter(db: Database) {
       return;
     }
 
-    const { title, content, folderId, tagIds, isPinned, archived } = req.body ?? {};
+    const { title, content, folderId, tagIds, isPinned, archived, expectedUpdatedAt } =
+      req.body ?? {};
     const parsedTagIds = parseTagIds(tagIds);
     const updates: Partial<typeof notes.$inferInsert> = {
       updatedAt: new Date(),
     };
+
+    const [existingNote] = await db
+      .select()
+      .from(notes)
+      .where(and(eq(notes.id, noteId), eq(notes.userId, req.userId!)));
+
+    if (!existingNote) {
+      res.status(404).json({ error: "Note not found" });
+      return;
+    }
+
+    if (expectedUpdatedAt !== undefined) {
+      if (typeof expectedUpdatedAt !== "string") {
+        res.status(400).json({ error: "expectedUpdatedAt must be an ISO date string" });
+        return;
+      }
+
+      const expectedTime = new Date(expectedUpdatedAt).getTime();
+      if (Number.isNaN(expectedTime) || existingNote.updatedAt.getTime() !== expectedTime) {
+        res.status(409).json({
+          error: "Note was updated on another device",
+          note: await serializeNote(db, existingNote),
+        });
+        return;
+      }
+    }
 
     if (parsedTagIds === null) {
       res.status(400).json({ error: "tagIds must be an array of strings" });
