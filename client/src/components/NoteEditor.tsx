@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 
 import type { Folder, Tag } from "../api/notes";
+import { MarkdownContent } from "./MarkdownContent";
 
 export type NoteEditorMode = "create" | "edit";
 export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
@@ -195,18 +196,25 @@ export function NoteEditor({
         </fieldset>
       ) : null}
 
-      <label className="note-editor__field">
-        Content
-        <textarea
-          value={content}
-          onChange={(event) => {
-            setContent(event.target.value);
-            emitChange(title, event.target.value, folderId, tagIds);
-          }}
-          placeholder="Start writing..."
-          rows={12}
-        />
-      </label>
+      <div className="note-editor__split">
+        <label className="note-editor__field">
+          Content
+          <textarea
+            value={content}
+            onChange={(event) => {
+              setContent(event.target.value);
+              emitChange(title, event.target.value, folderId, tagIds);
+            }}
+            placeholder="Start writing..."
+            rows={12}
+          />
+        </label>
+
+        <section className="note-editor__preview" aria-label="Markdown preview">
+          <h2>Preview</h2>
+          <MarkdownContent content={content} className="note-editor__preview-content" />
+        </section>
+      </div>
 
       <div className="note-editor__actions">
         {onCancel ? (

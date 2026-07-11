@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { fetchFolders, fetchNote, updateNote, type Folder, type Note } from "../api/notes";
 import { useAuth } from "../auth/AuthContext";
+import { MarkdownContent } from "../components/MarkdownContent";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString();
@@ -151,7 +152,7 @@ export function NoteDetailPage() {
           ))}
         </div>
       ) : null}
-      <div className="note-detail__content">{note.content || "No content yet."}</div>
+      <MarkdownContent content={note.content} className="note-detail__content" />
     </article>
   );
 }
