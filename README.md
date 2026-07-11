@@ -24,14 +24,22 @@ The server starts on `http://localhost:3000`. Health check: `GET /health`.
 
 ### Auth endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/auth/signup` | Create account (returns access + refresh tokens) |
-| `POST` | `/auth/login` | Authenticate and start session |
-| `POST` | `/auth/refresh` | Refresh an expired access token |
-| `POST` | `/auth/logout` | End a session |
+| Method | Path            | Description                                      |
+| ------ | --------------- | ------------------------------------------------ |
+| `POST` | `/auth/signup`  | Create account (returns access + refresh tokens) |
+| `POST` | `/auth/login`   | Authenticate and start session                   |
+| `POST` | `/auth/refresh` | Refresh an expired access token                  |
+| `POST` | `/auth/logout`  | End a session                                    |
 
-Protected note routes (`GET/POST /notes`, `GET /notes/:id`) require `Authorization: Bearer <accessToken>`.
+Protected note routes require `Authorization: Bearer <accessToken>`:
+
+| Method   | Path         | Description             |
+| -------- | ------------ | ----------------------- |
+| `GET`    | `/notes`     | List the caller's notes |
+| `POST`   | `/notes`     | Create a note           |
+| `GET`    | `/notes/:id` | Get a single note       |
+| `PATCH`  | `/notes/:id` | Update a note           |
+| `DELETE` | `/notes/:id` | Delete a note           |
 
 ## Scripts
 
