@@ -20,7 +20,13 @@ npm install
 npm run dev
 ```
 
-The server starts on `http://localhost:3000`. Health check: `GET /health`.
+In a second terminal, start the client dev server:
+
+```bash
+npm run dev:client
+```
+
+The API runs on `http://localhost:3000` and the client on `http://localhost:5173` (proxied to the API).
 
 ### Auth endpoints
 
