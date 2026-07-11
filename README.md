@@ -22,6 +22,17 @@ npm run dev
 
 The server starts on `http://localhost:3000`. Health check: `GET /health`.
 
+### Auth endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/auth/signup` | Create account (returns access + refresh tokens) |
+| `POST` | `/auth/login` | Authenticate and start session |
+| `POST` | `/auth/refresh` | Refresh an expired access token |
+| `POST` | `/auth/logout` | End a session |
+
+Protected note routes (`GET/POST /notes`, `GET /notes/:id`) require `Authorization: Bearer <accessToken>`.
+
 ## Scripts
 
 | Command                | Description                         |

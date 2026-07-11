@@ -1,8 +1,16 @@
 import express from "express";
 
+import { createAuthRouter } from "./api/auth.js";
+import { createNotesRouter } from "./api/notes.js";
 import { env } from "./config/env.js";
+import { createDb, type Database } from "./db/client.js";
 
-export function createApp() {
+export type CreateAppOptions = {
+  db?: Database;
+};
+
+export function createApp(options: CreateAppOptions = {}) {
+  const db = options.db ?? createDb();
   const app = express();
 
   app.use(express.json());
@@ -14,6 +22,9 @@ export function createApp() {
       environment: env.nodeEnv,
     });
   });
+
+  app.use("/auth", createAuthRouter(db));
+  app.use("/notes", createNotesRouter(db));
 
   return app;
 }
