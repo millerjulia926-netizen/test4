@@ -15,6 +15,8 @@ const sampleNotes = [
     folderId: null,
     title: "Meeting notes",
     content: "Discuss roadmap",
+    isPinned: false,
+    archivedAt: null,
     tags: [],
     createdAt: "2026-07-11T10:00:00.000Z",
     updatedAt: "2026-07-11T12:00:00.000Z",

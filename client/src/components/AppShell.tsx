@@ -15,6 +15,7 @@ export function AppShell() {
           {isAuthenticated ? (
             <>
               <Link to="/notes">All notes</Link>
+              <Link to="/notes/archived">Archived</Link>
               <Link to="/organize">Organize</Link>
               <Link to="/notes/new">New note</Link>
               <button type="button" onClick={logout}>

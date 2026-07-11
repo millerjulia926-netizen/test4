@@ -16,6 +16,7 @@ export function App() {
           <Route index element={<Navigate to="/notes" replace />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="organize" element={<OrganizePage />} />
+          <Route path="notes/archived" element={<NotesListPage archived />} />
           <Route path="notes" element={<NotesListPage />} />
           <Route path="notes/new" element={<NoteEditorPage />} />
           <Route path="notes/:id/edit" element={<NoteEditorPage />} />
