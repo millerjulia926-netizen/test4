@@ -1,4 +1,6 @@
 import express from "express";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { createAuthRouter } from "./api/auth.js";
 import { createNotesRouter } from "./api/notes.js";
@@ -25,6 +27,26 @@ export function createApp(options: CreateAppOptions = {}) {
 
   app.use("/auth", createAuthRouter(db));
   app.use("/notes", createNotesRouter(db));
+
+  const clientDist = path.join(path.dirname(fileURLToPath(import.meta.url)), "../client/dist");
+  app.use(express.static(clientDist));
+
+  app.get("/{*splat}", (_req, res, next) => {
+    if (
+      _req.path.startsWith("/auth") ||
+      _req.path.startsWith("/notes") ||
+      _req.path === "/health"
+    ) {
+      next();
+      return;
+    }
+
+    res.sendFile(path.join(clientDist, "index.html"), (error) => {
+      if (error) {
+        next();
+      }
+    });
+  });
 
   return app;
 }
