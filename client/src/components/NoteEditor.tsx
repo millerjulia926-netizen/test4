@@ -1,15 +1,28 @@
 import { useMemo, useState, type FormEvent } from "react";
 
+import type { Folder, Tag } from "../api/notes";
+
 export type NoteEditorMode = "create" | "edit";
 export type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 
+export type NoteEditorValues = {
+  title: string;
+  content: string;
+  folderId: string | null;
+  tagIds: string[];
+};
+
 export type NoteEditorProps = {
   mode: NoteEditorMode;
+  folders?: Folder[];
+  tags?: Tag[];
   initialTitle?: string;
   initialContent?: string;
+  initialFolderId?: string | null;
+  initialTagIds?: string[];
   saveStatus?: SaveStatus;
-  onChange?: (values: { title: string; content: string }) => void;
-  onSave?: (values: { title: string; content: string }) => void | Promise<void>;
+  onChange?: (values: NoteEditorValues) => void;
+  onSave?: (values: NoteEditorValues) => void | Promise<void>;
   onCancel?: () => void;
 };
 
@@ -29,10 +42,18 @@ function statusLabel(status: SaveStatus, isDirty: boolean): string | null {
   return null;
 }
 
+function tagsEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
 export function NoteEditor({
   mode,
+  folders = [],
+  tags = [],
   initialTitle = "",
   initialContent = "",
+  initialFolderId = null,
+  initialTagIds = [],
   saveStatus = "idle",
   onChange,
   onSave,
@@ -40,17 +61,50 @@ export function NoteEditor({
 }: NoteEditorProps) {
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
+  const [folderId, setFolderId] = useState<string | null>(initialFolderId);
+  const [tagIds, setTagIds] = useState<string[]>(initialTagIds);
   const [error, setError] = useState<string | null>(null);
 
   const isDirty = useMemo(
-    () => title !== initialTitle || content !== initialContent,
-    [title, content, initialTitle, initialContent],
+    () =>
+      title !== initialTitle ||
+      content !== initialContent ||
+      folderId !== initialFolderId ||
+      !tagsEqual(tagIds, initialTagIds),
+    [
+      title,
+      content,
+      folderId,
+      tagIds,
+      initialTitle,
+      initialContent,
+      initialFolderId,
+      initialTagIds,
+    ],
   );
 
   const statusText = statusLabel(saveStatus, isDirty);
 
-  function emitChange(nextTitle: string, nextContent: string) {
-    onChange?.({ title: nextTitle, content: nextContent });
+  function emitChange(
+    nextTitle: string,
+    nextContent: string,
+    nextFolderId: string | null,
+    nextTagIds: string[],
+  ) {
+    onChange?.({
+      title: nextTitle,
+      content: nextContent,
+      folderId: nextFolderId,
+      tagIds: nextTagIds,
+    });
+  }
+
+  function toggleTag(tagId: string) {
+    const nextTagIds = tagIds.includes(tagId)
+      ? tagIds.filter((id) => id !== tagId)
+      : [...tagIds, tagId];
+    setTagIds(nextTagIds);
+    emitChange(title, content, folderId, nextTagIds);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -66,7 +120,12 @@ export function NoteEditor({
     }
 
     setError(null);
-    await onSave({ title: title.trim(), content });
+    await onSave({
+      title: title.trim(),
+      content,
+      folderId,
+      tagIds,
+    });
   }
 
   return (
@@ -92,7 +151,7 @@ export function NoteEditor({
           value={title}
           onChange={(event) => {
             setTitle(event.target.value);
-            emitChange(event.target.value, content);
+            emitChange(event.target.value, content, folderId, tagIds);
           }}
           placeholder="Note title"
           aria-invalid={Boolean(error)}
@@ -100,12 +159,49 @@ export function NoteEditor({
       </label>
 
       <label className="note-editor__field">
+        Folder
+        <select
+          value={folderId ?? ""}
+          onChange={(event) => {
+            const nextFolderId = event.target.value || null;
+            setFolderId(nextFolderId);
+            emitChange(title, content, nextFolderId, tagIds);
+          }}
+        >
+          <option value="">No folder</option>
+          {folders.map((folder) => (
+            <option key={folder.id} value={folder.id}>
+              {folder.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {tags.length > 0 ? (
+        <fieldset className="note-editor__field">
+          <legend>Tags</legend>
+          <div className="tag-picker">
+            {tags.map((tag) => (
+              <label key={tag.id} className="tag-picker__item">
+                <input
+                  type="checkbox"
+                  checked={tagIds.includes(tag.id)}
+                  onChange={() => toggleTag(tag.id)}
+                />
+                {tag.name}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
+
+      <label className="note-editor__field">
         Content
         <textarea
           value={content}
           onChange={(event) => {
             setContent(event.target.value);
-            emitChange(title, event.target.value);
+            emitChange(title, event.target.value, folderId, tagIds);
           }}
           placeholder="Start writing..."
           rows={12}
@@ -120,7 +216,7 @@ export function NoteEditor({
         ) : null}
         {onSave ? (
           <button type="submit" disabled={saveStatus === "saving" || !isDirty}>
-            {saveStatus === "saving" ? "Saving..." : mode === "create" ? "Save now" : "Save now"}
+            {saveStatus === "saving" ? "Saving..." : "Save now"}
           </button>
         ) : null}
       </div>

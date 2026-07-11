@@ -17,6 +17,7 @@ vi.mock("../api/notes", async () => {
       folderId: null,
       title: input.title,
       content: input.content,
+      tags: [],
       createdAt: "2026-07-11T10:00:00.000Z",
       updatedAt: "2026-07-11T10:00:00.000Z",
     })),
@@ -26,9 +27,12 @@ vi.mock("../api/notes", async () => {
       folderId: null,
       title: input.title ?? "Title",
       content: input.content ?? "",
+      tags: [],
       createdAt: "2026-07-11T10:00:00.000Z",
       updatedAt: "2026-07-11T10:01:00.000Z",
     })),
+    fetchFolders: vi.fn(async () => []),
+    fetchTags: vi.fn(async () => []),
     fetchNote: vi.fn(async (id: string) => ({
       id,
       userId: "user-1",
@@ -93,6 +97,8 @@ describe("NoteEditorPage auto-save", () => {
     expect(notesApi.createNote).toHaveBeenCalledWith({
       title: "Auto saved title",
       content: "Draft body",
+      folderId: null,
+      tagIds: [],
     });
     expect(notesApi.updateNote).not.toHaveBeenCalled();
   });

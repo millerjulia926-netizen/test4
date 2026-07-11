@@ -1,9 +1,10 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, SQL } from "drizzle-orm";
 import { Router } from "express";
 
+import { getTagsForNote, replaceNoteTags, tagsBelongToUser } from "./note-tags.js";
 import { type AuthenticatedRequest, requireSession } from "../auth/middleware.js";
 import type { Database } from "../db/client.js";
-import { folders, notes } from "../db/schema.js";
+import { folders, noteTags, notes, tags } from "../db/schema.js";
 
 function parseNoteId(rawId: string | string[]): string | null {
   return typeof rawId === "string" ? rawId : null;
@@ -22,26 +23,83 @@ async function folderBelongsToUser(
   return Boolean(folder);
 }
 
+async function serializeNote(db: Database, note: typeof notes.$inferSelect) {
+  const noteTagsList = await getTagsForNote(db, note.id);
+  return { ...note, tags: noteTagsList };
+}
+
+function parseTagIds(value: unknown): string[] | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value) || value.some((tagId) => typeof tagId !== "string")) {
+    return null;
+  }
+
+  return value;
+}
+
 export function createNotesRouter(db: Database) {
   const router = Router();
 
   router.use(requireSession(db));
 
   router.get("/", async (req: AuthenticatedRequest, res) => {
-    const userNotes = await db
+    const folderId = typeof req.query.folderId === "string" ? req.query.folderId : undefined;
+    const tagId = typeof req.query.tagId === "string" ? req.query.tagId : undefined;
+
+    const conditions: SQL[] = [eq(notes.userId, req.userId!)];
+
+    if (folderId) {
+      if (!(await folderBelongsToUser(db, req.userId!, folderId))) {
+        res.status(400).json({ error: "Folder not found" });
+        return;
+      }
+      conditions.push(eq(notes.folderId, folderId));
+    }
+
+    let userNotes = await db
       .select()
       .from(notes)
-      .where(eq(notes.userId, req.userId!))
+      .where(and(...conditions))
       .orderBy(desc(notes.updatedAt));
 
-    res.json(userNotes);
+    if (tagId) {
+      const [tag] = await db
+        .select({ id: tags.id })
+        .from(tags)
+        .where(and(eq(tags.id, tagId), eq(tags.userId, req.userId!)));
+
+      if (!tag) {
+        res.status(400).json({ error: "Tag not found" });
+        return;
+      }
+
+      const taggedRows = await db
+        .select({ noteId: noteTags.noteId })
+        .from(noteTags)
+        .where(eq(noteTags.tagId, tagId));
+
+      const taggedIds = new Set(taggedRows.map((row) => row.noteId));
+      userNotes = userNotes.filter((note) => taggedIds.has(note.id));
+    }
+
+    const payload = await Promise.all(userNotes.map((note) => serializeNote(db, note)));
+    res.json(payload);
   });
 
   router.post("/", async (req: AuthenticatedRequest, res) => {
-    const { title, content, folderId } = req.body ?? {};
+    const { title, content, folderId, tagIds } = req.body ?? {};
+    const parsedTagIds = parseTagIds(tagIds);
 
     if (!title || typeof title !== "string" || !title.trim()) {
       res.status(400).json({ error: "Title is required" });
+      return;
+    }
+
+    if (parsedTagIds === null) {
+      res.status(400).json({ error: "tagIds must be an array of strings" });
       return;
     }
 
@@ -57,6 +115,11 @@ export function createNotesRouter(db: Database) {
       }
     }
 
+    if (parsedTagIds && !(await tagsBelongToUser(db, req.userId!, parsedTagIds))) {
+      res.status(400).json({ error: "One or more tags were not found" });
+      return;
+    }
+
     const [note] = await db
       .insert(notes)
       .values({
@@ -67,7 +130,11 @@ export function createNotesRouter(db: Database) {
       })
       .returning();
 
-    res.status(201).json(note);
+    if (parsedTagIds) {
+      await replaceNoteTags(db, note.id, parsedTagIds);
+    }
+
+    res.status(201).json(await serializeNote(db, note));
   });
 
   router.get("/:id", async (req: AuthenticatedRequest, res) => {
@@ -87,7 +154,7 @@ export function createNotesRouter(db: Database) {
       return;
     }
 
-    res.json(note);
+    res.json(await serializeNote(db, note));
   });
 
   router.patch("/:id", async (req: AuthenticatedRequest, res) => {
@@ -97,10 +164,16 @@ export function createNotesRouter(db: Database) {
       return;
     }
 
-    const { title, content, folderId } = req.body ?? {};
+    const { title, content, folderId, tagIds } = req.body ?? {};
+    const parsedTagIds = parseTagIds(tagIds);
     const updates: Partial<typeof notes.$inferInsert> = {
       updatedAt: new Date(),
     };
+
+    if (parsedTagIds === null) {
+      res.status(400).json({ error: "tagIds must be an array of strings" });
+      return;
+    }
 
     if (title !== undefined) {
       if (typeof title !== "string" || !title.trim()) {
@@ -132,7 +205,12 @@ export function createNotesRouter(db: Database) {
       updates.folderId = folderId;
     }
 
-    if (Object.keys(updates).length === 1) {
+    if (parsedTagIds && !(await tagsBelongToUser(db, req.userId!, parsedTagIds))) {
+      res.status(400).json({ error: "One or more tags were not found" });
+      return;
+    }
+
+    if (Object.keys(updates).length === 1 && parsedTagIds === undefined) {
       res.status(400).json({ error: "At least one field is required to update" });
       return;
     }
@@ -148,7 +226,11 @@ export function createNotesRouter(db: Database) {
       return;
     }
 
-    res.json(note);
+    if (parsedTagIds !== undefined) {
+      await replaceNoteTags(db, note.id, parsedTagIds);
+    }
+
+    res.json(await serializeNote(db, note));
   });
 
   router.delete("/:id", async (req: AuthenticatedRequest, res) => {
