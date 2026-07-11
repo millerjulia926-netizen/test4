@@ -14,6 +14,7 @@ export function AppShell() {
         <nav className="app-nav">
           {isAuthenticated ? (
             <>
+              <Link to="/notes">All notes</Link>
               <Link to="/notes/new">New note</Link>
               <button type="button" onClick={logout}>
                 Log out

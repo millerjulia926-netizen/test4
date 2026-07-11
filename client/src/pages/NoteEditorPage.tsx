@@ -65,7 +65,7 @@ export function NoteEditorPage() {
     try {
       const note = mode === "create" ? await createNote(values) : await updateNote(id!, values);
 
-      navigate(`/notes/${note.id}/edit`, { replace: true });
+      navigate(`/notes/${note.id}`);
       setInitialTitle(note.title);
       setInitialContent(note.content);
     } finally {

@@ -70,6 +70,10 @@ export async function signup(email: string, password: string): Promise<AuthToken
   });
 }
 
+export async function fetchNotes(): Promise<Note[]> {
+  return apiFetch<Note[]>("/notes");
+}
+
 export async function fetchNote(id: string): Promise<Note> {
   return apiFetch<Note>(`/notes/${id}`);
 }
