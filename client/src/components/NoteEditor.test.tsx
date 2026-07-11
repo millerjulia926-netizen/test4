@@ -12,7 +12,7 @@ describe("NoteEditor", () => {
     render(<NoteEditor mode="create" onSave={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "New note" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create note" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save now" })).toBeDisabled();
   });
 
   it("renders edit mode with initial values", () => {
@@ -35,7 +35,7 @@ describe("NoteEditor", () => {
     render(<NoteEditor mode="create" onSave={vi.fn()} />);
 
     await user.type(screen.getByPlaceholderText("Start writing..."), "Some content");
-    await user.click(screen.getByRole("button", { name: "Create note" }));
+    await user.click(screen.getByRole("button", { name: "Save now" }));
 
     expect(screen.getByText("Title is required")).toBeInTheDocument();
   });
@@ -49,7 +49,7 @@ describe("NoteEditor", () => {
     await user.type(screen.getByPlaceholderText("Note title"), "Draft title");
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Create note" }));
+    await user.click(screen.getByRole("button", { name: "Save now" }));
 
     expect(onSave).toHaveBeenCalledWith({
       title: "Draft title",
@@ -64,9 +64,34 @@ describe("NoteEditor", () => {
       <NoteEditor mode="edit" initialTitle="Saved" initialContent="Saved body" onSave={vi.fn()} />,
     );
 
-    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save now" })).toBeDisabled();
 
     await user.type(screen.getByDisplayValue("Saved"), "!");
-    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save now" })).toBeEnabled();
+  });
+
+  it("shows save status from auto-save", () => {
+    render(
+      <NoteEditor
+        mode="edit"
+        initialTitle="Saved"
+        initialContent="Body"
+        saveStatus="saved"
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("save-status")).toHaveTextContent("All changes saved");
+  });
+
+  it("calls onChange when fields update", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    render(<NoteEditor mode="create" onChange={onChange} />);
+
+    await user.type(screen.getByPlaceholderText("Note title"), "A");
+
+    expect(onChange).toHaveBeenCalled();
   });
 });
