@@ -69,10 +69,27 @@ a {
   gap: 1rem;
 }
 
+.shared-note__badge,
+.note-detail__message {
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.shared-note__badge {
+  font-weight: 600;
+}
+
+.note-detail__share {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .note-detail__actions {
   display: flex;
   gap: 0.75rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .notes-list__pin {

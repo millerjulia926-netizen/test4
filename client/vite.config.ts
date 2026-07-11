@@ -10,6 +10,7 @@ export default defineConfig({
       "/notes": "http://localhost:3000",
       "/folders": "http://localhost:3000",
       "/tags": "http://localhost:3000",
+      "/shared": "http://localhost:3000",
       "/health": "http://localhost:3000",
     },
   },

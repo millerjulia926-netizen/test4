@@ -7,11 +7,13 @@ import { NoteDetailPage } from "./pages/NoteDetailPage";
 import { NoteEditorPage } from "./pages/NoteEditorPage";
 import { NotesListPage } from "./pages/NotesListPage";
 import { OrganizePage } from "./pages/OrganizePage";
+import { SharedNotePage } from "./pages/SharedNotePage";
 
 export function App() {
   return (
     <AuthProvider>
       <Routes>
+        <Route path="shared/:token" element={<SharedNotePage />} />
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/notes" replace />} />
           <Route path="login" element={<LoginPage />} />

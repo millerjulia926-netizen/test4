@@ -81,6 +81,20 @@ export const noteTags = pgTable(
   (table) => [primaryKey({ columns: [table.noteId, table.tagId] })],
 );
 
+export const noteShares = pgTable("note_shares", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  noteId: uuid("note_id")
+    .notNull()
+    .references(() => notes.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const sessions = pgTable("sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id")
@@ -130,6 +144,18 @@ export const notesRelations = relations(notes, ({ one, many }) => ({
     references: [folders.id],
   }),
   noteTags: many(noteTags),
+  shares: many(noteShares),
+}));
+
+export const noteSharesRelations = relations(noteShares, ({ one }) => ({
+  note: one(notes, {
+    fields: [noteShares.noteId],
+    references: [notes.id],
+  }),
+  user: one(users, {
+    fields: [noteShares.userId],
+    references: [users.id],
+  }),
 }));
 
 export const tagsRelations = relations(tags, ({ one, many }) => ({
@@ -161,5 +187,7 @@ export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
 export type NoteTag = typeof noteTags.$inferSelect;
 export type NewNoteTag = typeof noteTags.$inferInsert;
+export type NoteShare = typeof noteShares.$inferSelect;
+export type NewNoteShare = typeof noteShares.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
