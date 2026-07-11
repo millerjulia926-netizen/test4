@@ -20,8 +20,10 @@ export type NotesListProps = {
   tags?: Tag[];
   selectedFolderId?: string;
   selectedTagId?: string;
+  searchQuery?: string;
   onFolderFilterChange?: (folderId: string) => void;
   onTagFilterChange?: (tagId: string) => void;
+  onSearchChange?: (query: string) => void;
 };
 
 export function NotesList({
@@ -30,17 +32,67 @@ export function NotesList({
   tags = [],
   selectedFolderId = "",
   selectedTagId = "",
+  searchQuery = "",
   onFolderFilterChange,
   onTagFilterChange,
+  onSearchChange,
 }: NotesListProps) {
   const folderName = folders.find((folder) => folder.id === selectedFolderId)?.name;
   const tagName = tags.find((tag) => tag.id === selectedTagId)?.name;
+  const hasActiveFilters = Boolean(folderName || tagName || searchQuery.trim());
 
   if (notes.length === 0) {
     return (
       <section className="notes-list notes-list--empty" data-testid="notes-list">
         <h1>Your notes</h1>
-        {folderName || tagName ? (
+        {onSearchChange || onFolderFilterChange || onTagFilterChange ? (
+          <div className="notes-filters">
+            {onSearchChange ? (
+              <label className="notes-search">
+                Search
+                <input
+                  type="search"
+                  value={searchQuery}
+                  placeholder="Search titles and content"
+                  onChange={(event) => onSearchChange(event.target.value)}
+                />
+              </label>
+            ) : null}
+            {onFolderFilterChange ? (
+              <label>
+                Folder
+                <select
+                  value={selectedFolderId}
+                  onChange={(event) => onFolderFilterChange(event.target.value)}
+                >
+                  <option value="">All folders</option>
+                  {folders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {onTagFilterChange ? (
+              <label>
+                Tag
+                <select
+                  value={selectedTagId}
+                  onChange={(event) => onTagFilterChange(event.target.value)}
+                >
+                  <option value="">All tags</option>
+                  {tags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+        ) : null}
+        {hasActiveFilters ? (
           <p>No notes match the current filters.</p>
         ) : (
           <p>You do not have any notes yet.</p>
@@ -59,8 +111,19 @@ export function NotesList({
         <Link to="/notes/new">New note</Link>
       </div>
 
-      {onFolderFilterChange || onTagFilterChange ? (
+      {onFolderFilterChange || onTagFilterChange || onSearchChange ? (
         <div className="notes-filters">
+          {onSearchChange ? (
+            <label className="notes-search">
+              Search
+              <input
+                type="search"
+                value={searchQuery}
+                placeholder="Search titles and content"
+                onChange={(event) => onSearchChange(event.target.value)}
+              />
+            </label>
+          ) : null}
           {onFolderFilterChange ? (
             <label>
               Folder

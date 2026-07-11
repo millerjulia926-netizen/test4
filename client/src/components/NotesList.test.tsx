@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Note } from "../api/notes";
 import { NotesList } from "./NotesList";
@@ -64,5 +65,21 @@ describe("NotesList", () => {
       "href",
       "/notes/note-2",
     );
+  });
+
+  it("renders a search input when onSearchChange is provided", async () => {
+    const user = userEvent.setup();
+    const onSearchChange = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <NotesList notes={sampleNotes} searchQuery="" onSearchChange={onSearchChange} />
+      </MemoryRouter>,
+    );
+
+    const searchInput = screen.getByRole("searchbox", { name: "Search" });
+    await user.type(searchInput, "meet");
+
+    expect(onSearchChange).toHaveBeenCalled();
   });
 });

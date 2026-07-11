@@ -92,13 +92,20 @@ export async function signup(email: string, password: string): Promise<AuthToken
   });
 }
 
-export async function fetchNotes(filters?: { folderId?: string; tagId?: string }): Promise<Note[]> {
+export async function fetchNotes(filters?: {
+  folderId?: string;
+  tagId?: string;
+  q?: string;
+}): Promise<Note[]> {
   const params = new URLSearchParams();
   if (filters?.folderId) {
     params.set("folderId", filters.folderId);
   }
   if (filters?.tagId) {
     params.set("tagId", filters.tagId);
+  }
+  if (filters?.q) {
+    params.set("q", filters.q);
   }
 
   const query = params.toString();

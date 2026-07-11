@@ -1,4 +1,4 @@
-import { and, desc, eq, SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, or, SQL } from "drizzle-orm";
 import { Router } from "express";
 
 import { getTagsForNote, replaceNoteTags, tagsBelongToUser } from "./note-tags.js";
@@ -8,6 +8,10 @@ import { folders, noteTags, notes, tags } from "../db/schema.js";
 
 function parseNoteId(rawId: string | string[]): string | null {
   return typeof rawId === "string" ? rawId : null;
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
 }
 
 async function folderBelongsToUser(
@@ -48,6 +52,8 @@ export function createNotesRouter(db: Database) {
   router.get("/", async (req: AuthenticatedRequest, res) => {
     const folderId = typeof req.query.folderId === "string" ? req.query.folderId : undefined;
     const tagId = typeof req.query.tagId === "string" ? req.query.tagId : undefined;
+    const search =
+      typeof req.query.q === "string" && req.query.q.trim() ? req.query.q.trim() : undefined;
 
     const conditions: SQL[] = [eq(notes.userId, req.userId!)];
 
@@ -57,6 +63,14 @@ export function createNotesRouter(db: Database) {
         return;
       }
       conditions.push(eq(notes.folderId, folderId));
+    }
+
+    if (search) {
+      const pattern = `%${escapeLikePattern(search)}%`;
+      const searchCondition = or(ilike(notes.title, pattern), ilike(notes.content, pattern));
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
     }
 
     let userNotes = await db

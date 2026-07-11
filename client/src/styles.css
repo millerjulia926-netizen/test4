@@ -175,11 +175,23 @@ a {
 }
 
 .notes-filters label,
-.note-editor__field select {
+.note-editor__field select,
+.notes-search input {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   font-weight: 600;
+}
+
+.notes-search {
+  flex: 1 1 220px;
+}
+
+.notes-search input {
+  font-weight: 400;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
 }
 
 .tag-picker {
