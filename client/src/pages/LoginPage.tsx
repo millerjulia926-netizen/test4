@@ -23,7 +23,7 @@ export function LoginPage() {
       } else {
         await login(email, password);
       }
-      navigate("/notes/new");
+      navigate("/notes");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Authentication failed");
     } finally {
